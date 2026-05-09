@@ -1,0 +1,32 @@
+[
+  {
+    "product_id": "781070",
+    "title": "Great product",
+    "description": "This is really amazing I would definitely buy it again",
+    "rating": 5,
+    "ai_label": "Buy",
+    "final_label": "Buy",
+    "overridden": false,
+    "review_id": "8bc69780-d362-4ebd-b215-15b211e3da7f"
+  },
+  {
+    "product_id": "781070",
+    "title": "Great product",
+    "description": "This is really amazing I would definitely buy it again",
+    "rating": 5,
+    "ai_label": "Buy",
+    "final_label": "Buy",
+    "overridden": false,
+    "review_id": "4ba28b8a-2240-4ee8-92a5-e9406a64f403"
+  },
+  {
+    "product_id": "781070",
+    "title": "Great product",
+    "description": "This is really amazing I would definitely buy it again",
+    "rating": 5,
+    "ai_label": "Buy",
+    "final_label": "Buy",
+    "overridden": false,
+    "review_id": "38a5506c-7978-43be-b0a7-21524147ff4b"
+  }
+]
