@@ -43,7 +43,6 @@ class RecommendationService:
         print(f"[RecommendationService] built {self._sim_matrix.shape} similarity matrix")
 
     # ── public API ────────────────────────────────────────────────────────────
-
     def similar(self, product_id: str, top_n: int | None = None) -> list[dict]:
         """Return up to top_n products most similar to product_id (excluding itself)."""
         top_n = top_n or config.SIMILAR_PRODUCTS_TOP_N
