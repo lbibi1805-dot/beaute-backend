@@ -40,3 +40,12 @@ class ReviewRepository:
 
     def all(self) -> list[dict]:
         return [r.to_dict() for r in Review.query.order_by(Review.created_at.desc()).all()]
+
+    def delete_by_id(self, review_id: str) -> bool:
+        """Hard-delete a review. Returns True if deleted, False if not found."""
+        record = db.session.get(Review, review_id)
+        if record is None:
+            return False
+        db.session.delete(record)
+        db.session.commit()
+        return True

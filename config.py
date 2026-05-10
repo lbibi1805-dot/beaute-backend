@@ -26,6 +26,13 @@ VECTORIZER_PKL_PATH = ML_DIR / "tfidf_vectorizer.pkl"
 DB_PATH     = DATA_DIR / "beaute.db"
 DB_URI      = f"sqlite:///{DB_PATH}"
 
+# ── Auth credentials (demo-grade, fixed in config) ───────────────────────────
+AUTH_SECRET          = "beaute-demo-secret-2026"
+ADMIN_USERNAME       = "admin"
+ADMIN_PASSWORD       = "admin123"
+CUSTOMER_USERNAME    = "customer"
+CUSTOMER_PASSWORD    = "customer123"
+
 # ── Flask settings ────────────────────────────────────────────────────────────
 FLASK_PORT  = 5000
 FLASK_DEBUG = True
