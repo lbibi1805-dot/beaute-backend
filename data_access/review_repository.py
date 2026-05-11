@@ -19,6 +19,7 @@ class ReviewRepository:
         record = Review(
             id                = str(uuid.uuid4()),
             product_id        = review["product_id"],
+            author            = review.get("author"),
             title             = review["title"],
             description       = review["description"],
             rating            = review["rating"],
@@ -50,3 +51,17 @@ class ReviewRepository:
         db.session.delete(record)
         db.session.commit()
         return True
+
+    def delete_by_id_as_user(self, review_id: str, username: str) -> tuple[bool, str]:
+        """
+        Delete a review only if it belongs to `username`.
+        Returns (True, "") on success, (False, "not_found") or (False, "forbidden").
+        """
+        record = db.session.get(Review, review_id)
+        if record is None:
+            return False, "not_found"
+        if record.author != username:
+            return False, "forbidden"
+        db.session.delete(record)
+        db.session.commit()
+        return True, ""

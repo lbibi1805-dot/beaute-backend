@@ -17,7 +17,7 @@ def _services():
 def login():
     """
     Body (JSON): { username, password }
-    Response:    { token, role, expires_at }
+    Response:    { token, role, username, expires_at }
     """
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
@@ -32,3 +32,31 @@ def login():
         return jsonify({"error": "Invalid credentials"}), 401
 
     return jsonify(result), 200
+
+
+# ── POST /api/auth/register ───────────────────────────────────────────────────
+@auth_bp.post("/register")
+def register():
+    """
+    Register a new customer account.
+    Body (JSON): { username, password }
+    Response:    { token, role, username, expires_at }  (201)
+    Errors:      409 if username taken, 400 if fields missing or too short
+    """
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+
+    if not username or not password:
+        return jsonify({"error": "username and password are required"}), 400
+    if len(username) < 3:
+        return jsonify({"error": "username must be at least 3 characters"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "password must be at least 6 characters"}), 400
+
+    auth_svc = _services()["auth"]
+    result = auth_svc.register(username, password)
+    if result is None:
+        return jsonify({"error": "Username already taken"}), 409
+
+    return jsonify(result), 201
