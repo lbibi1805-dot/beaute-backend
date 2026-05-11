@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from flask import Flask
 from flask_cors import CORS
+from sqlalchemy import text
 
 import config
 from database import db
@@ -39,6 +40,13 @@ def create_app() -> Flask:
 
     with app.app_context():
         db.create_all()
+        # Migrate: add 'author' column if it doesn't exist (safe on re-run)
+        with db.engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE reviews ADD COLUMN author VARCHAR(64)"))
+                conn.commit()
+            except Exception:
+                pass  # column already exists
 
     # ── boot services ─────────────────────────────────────────────────────────
     product_repo    = ProductRepository()
