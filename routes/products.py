@@ -75,7 +75,7 @@ def create_review(product_id: str):
         title          — string (required)
         description    — string (required)
         rating         — int 1-5 (required)
-        label_override — "Buy" | "Not Buy" (optional)
+        label_override — "Recommended" | "Not Recommended" (optional)
     """
     data = request.get_json(silent=True) or {}
     title       = str(data.get("title", "")).strip()
@@ -107,9 +107,28 @@ def create_review(product_id: str):
 # ── GET /api/products/<product_id>/similar ────────────────────────────────────
 @products_bp.get("/<product_id>/similar")
 def similar_products(product_id: str):
+    """Content-based similar products (TF-IDF cosine on descriptions)."""
     svc = _services()["recommendation"]
     products = svc.similar(product_id)
     return jsonify({"products": products}), 200
+
+
+# ── GET /api/products/<product_id>/cooccurring ────────────────────────────────
+@products_bp.get("/<product_id>/cooccurring")
+def cooccurring_products(product_id: str):
+    """Author-based 'Customers also bought' (Jaccard on verified-buyer reviews)."""
+    svc = _services()["recommendation"]
+    products = svc.cooccurring_products(product_id)
+    return jsonify({"products": products}), 200
+
+
+# ── GET /api/products/<product_id>/complaints ─────────────────────────────────
+@products_bp.get("/<product_id>/complaints")
+def product_complaints(product_id: str):
+    """Top complaint terms mined from this product's negative reviews."""
+    svc = _services()["aspect_mining"]
+    limit = _int_or(request.args.get("limit"), 10)
+    return jsonify({"complaints": svc.top_complaints_for_product(product_id, limit=limit)}), 200
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -121,3 +140,10 @@ def _float_or_none(value: str | None) -> float | None:
         return float(value)
     except ValueError:
         return None
+
+
+def _int_or(value, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default

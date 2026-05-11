@@ -39,3 +39,20 @@ FLASK_DEBUG = True
 
 # ── recommendation ────────────────────────────────────────────────────────────
 SIMILAR_PRODUCTS_TOP_N = 6
+COOCCURRING_PRODUCTS_TOP_N = 6
+
+# ── ML trust weighting (matches notebook task2_3.ipynb §13) ──────────────────
+# Reviews where is_a_buyer == False are down-weighted to this value during
+# training and analytics; verified buyers contribute weight 1.0.
+NON_BUYER_TRUST_WEIGHT = 0.3
+
+# ── Recommendation target ────────────────────────────────────────────────────
+# A review is "Recommended" if review_rating >= RECOMMEND_RATING_THRESHOLD
+RECOMMEND_RATING_THRESHOLD = 4
+
+# ── Price tier buckets (USD; matches notebook §15.5) ─────────────────────────
+PRICE_TIERS = [
+    ("Budget (<$500)",     0,     500),
+    ("Mid ($500-$1500)",   500,   1500),
+    ("Premium (>$1500)",   1500,  float("inf")),
+]

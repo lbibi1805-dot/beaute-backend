@@ -1,19 +1,23 @@
 """
 Phase 0 — one-time model training + export.
 
-Run this script once before starting the Flask server.
+Methodology (mirrors data/task2_3.ipynb):
+  - Target: binary recommendation = (review_rating >= 4)
+  - Sample weights: verified buyers = 1.0; non-buyers = NON_BUYER_TRUST_WEIGHT
+    (down-weighted to reduce influence of potential seeding/bot reviews)
+  - Pipeline: BoW (Task 1 vocabulary) -> LinearSVC
+
 Run from the backend/ directory:
     python ml/train_and_export.py
 
 Outputs (saved in ml/):
-    ml/model.pkl              — trained LogisticRegression
-    ml/tfidf_vectorizer.pkl   — fitted TfidfVectorizer (must stay paired with model.pkl)
+    ml/model.pkl              - trained LinearSVC
+    ml/tfidf_vectorizer.pkl   - fitted CountVectorizer (paired with model.pkl)
 """
 
 import sys
 from pathlib import Path
 
-# ── resolve paths via config so they match the running backend ───────────────
 BACKEND_DIR = Path(__file__).resolve().parent.parent   # backend/
 sys.path.insert(0, str(BACKEND_DIR))
 
@@ -24,12 +28,12 @@ VOCAB_TXT      = config.VOCAB_TXT_PATH
 MODEL_OUT      = config.MODEL_PKL_PATH
 VECTORIZER_OUT = config.VECTORIZER_PKL_PATH
 
-# ── imports ──────────────────────────────────────────────────────────────────
 import numpy as np
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_validate
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.svm import LinearSVC
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import accuracy_score, f1_score
 import joblib
 
 RANDOM_STATE = 42
@@ -48,9 +52,8 @@ def load_vocab(path: Path) -> dict:
 
 
 def main():
-    print("=== Milestone 2 — Model Export ===\n")
+    print("=== Milestone 2 — Model Export (recommendation target) ===\n")
 
-    # 1. Load cleaned reviews from Milestone 1 output
     if not PROCESSED_CSV.exists():
         sys.exit(f"[ERROR] processed.csv not found at {PROCESSED_CSV}")
     if not VOCAB_TXT.exists():
@@ -60,64 +63,64 @@ def main():
     reviews["review_text"] = reviews["review_text"].fillna("").astype(str)
     print(f"Loaded {len(reviews):,} reviews from processed.csv")
 
-    # 2. Load vocabulary (identical to Task 1 vocab.txt format: word:index)
     vocab = load_vocab(VOCAB_TXT)
     print(f"Loaded {len(vocab):,} vocabulary entries from vocab.txt")
 
-    # 3. Build TF-IDF matrix using the exact Task 1 vocabulary
-    #    (same approach as task2_3.py §7)
-    #    sublinear_tf=True  → 1+log(tf) scaling (more numerically stable)
-    #    vocabulary=vocab   → columns align with vocab.txt indices
-    vectorizer = TfidfVectorizer(
+    # BoW over Task 1 vocabulary (same settings as notebook Task 2, CountVectorizer)
+    vectorizer = CountVectorizer(
         vocabulary=vocab,
         lowercase=False,
         token_pattern=r"(?u)\S+",
-        sublinear_tf=True,
-        norm="l2",
     )
     X = vectorizer.fit_transform(reviews["review_text"].tolist())
-    print(f"TF-IDF matrix: {X.shape}, nnz={X.nnz:,}")
+    print(f"BoW matrix: {X.shape}, nnz={X.nnz:,}")
 
-    # 4. Build target label
-    # is_a_buyer may be stored as bool (True/False) or string ("True"/"False")
-    # depending on how processed.csv was written; handle both gracefully.
-    is_buyer_col = reviews["is_a_buyer"]
-    y = is_buyer_col.map(
-        {True: 1, False: 0, "True": 1, "False": 0, 1: 1, 0: 0}
-    ).fillna(0).astype(int).values
+    # Target: rating >= threshold -> 1 (Recommended)
+    y = (reviews["review_rating"].astype(float) >= config.RECOMMEND_RATING_THRESHOLD).astype(int).values
     pos_rate = y.mean()
-    print(f"Class balance: is_a_buyer=True {pos_rate:.1%} / False {1 - pos_rate:.1%}")
+    print(f"Class balance: Recommended {pos_rate:.1%} / Not Recommended {1 - pos_rate:.1%}")
 
-    # 5. Quick 5-fold CV sanity check (mirrors task2_3.py Task 3 evaluation)
-    print("\nRunning 5-fold CV sanity check …")
+    # Trust weights from is_a_buyer (handles bool / string variants from processed.csv)
+    is_buyer = reviews["is_a_buyer"].map(
+        {True: True, False: False, "True": True, "False": False, 1: True, 0: False}
+    ).fillna(False).astype(bool).values
+    sample_weight = np.where(is_buyer, 1.0, config.NON_BUYER_TRUST_WEIGHT)
+    print(f"Trust weights: verified={int(is_buyer.sum()):,} (w=1.0), "
+          f"non-buyer={int((~is_buyer).sum()):,} (w={config.NON_BUYER_TRUST_WEIGHT})")
+    print(f"Effective weighted sample size: {sample_weight.sum():.1f} / {len(y):,}")
+
+    # 5-fold stratified CV with sample_weight (manual loop for clarity)
+    print("\nRunning 5-fold CV sanity check ...")
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-    clf_eval = LogisticRegression(
-        max_iter=2000, solver="lbfgs", n_jobs=-1,
-        class_weight="balanced", random_state=RANDOM_STATE,
-    )
-    scores = cross_validate(
-        clf_eval, X, y, cv=skf,
-        scoring={"accuracy": "accuracy", "macro_f1": "f1_macro"},
-        n_jobs=1,
-    )
-    print(f"  Accuracy  : {scores['test_accuracy'].mean():.4f} ± {scores['test_accuracy'].std():.4f}")
-    print(f"  Macro-F1  : {scores['test_macro_f1'].mean():.4f} ± {scores['test_macro_f1'].std():.4f}")
+    accs, f1s = [], []
+    for fold_i, (tr, te) in enumerate(skf.split(np.zeros(len(y)), y), 1):
+        clf = LinearSVC(
+            max_iter=5000,
+            class_weight="balanced", random_state=RANDOM_STATE,
+        )
+        clf.fit(X[tr], y[tr], sample_weight=sample_weight[tr])
+        pred = clf.predict(X[te])
+        accs.append(accuracy_score(y[te], pred))
+        f1s.append(f1_score(y[te], pred, average="macro"))
+        print(f"  fold {fold_i}: acc={accs[-1]:.4f}  macroF1={f1s[-1]:.4f}")
 
-    # 6. Train final model on the full dataset
-    print("\nTraining final model on full dataset …")
-    clf = LogisticRegression(
-        max_iter=2000, solver="lbfgs", n_jobs=-1,
+    print(f"\n  Accuracy  : {np.mean(accs):.4f} +/- {np.std(accs):.4f}")
+    print(f"  Macro-F1  : {np.mean(f1s):.4f} +/- {np.std(f1s):.4f}")
+
+    # Train final model on the full dataset
+    print("\nTraining final model on full dataset ...")
+    clf = LinearSVC(
+        max_iter=5000,
         class_weight="balanced", random_state=RANDOM_STATE,
     )
-    clf.fit(X, y)
+    clf.fit(X, y, sample_weight=sample_weight)
     print("Training complete.")
 
-    # 7. Persist artifacts
     MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(clf, MODEL_OUT)
     joblib.dump(vectorizer, VECTORIZER_OUT)
-    print(f"\nSaved model       → {MODEL_OUT}")
-    print(f"Saved vectorizer  → {VECTORIZER_OUT}")
+    print(f"\nSaved model       -> {MODEL_OUT}")
+    print(f"Saved vectorizer  -> {VECTORIZER_OUT}")
     print("\n[DONE] Run 'python backend/app.py' to start the Flask server.")
 
 

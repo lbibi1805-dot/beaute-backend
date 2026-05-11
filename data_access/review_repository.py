@@ -17,14 +17,15 @@ class ReviewRepository:
     def save(self, review: dict) -> dict:
         """Assign a UUID, persist to SQLite, and return the saved record as dict."""
         record = Review(
-            id          = str(uuid.uuid4()),
-            product_id  = review["product_id"],
-            title       = review["title"],
-            description = review["description"],
-            rating      = review["rating"],
-            ai_label    = review["ai_label"],
-            final_label = review["final_label"],
-            overridden  = review.get("overridden", False),
+            id                = str(uuid.uuid4()),
+            product_id        = review["product_id"],
+            title             = review["title"],
+            description       = review["description"],
+            rating            = review["rating"],
+            ai_label          = review["ai_label"],
+            final_label       = review["final_label"],
+            overridden        = review.get("overridden", False),
+            is_verified_buyer = review.get("is_verified_buyer", True),
         )
         db.session.add(record)
         db.session.commit()
