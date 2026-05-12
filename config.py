@@ -21,8 +21,41 @@ STOPWORDS_TXT_PATH = DATA_DIR / "stopwords_en.txt"
 PRODUCT_IMAGES_JSON_PATH = DATA_DIR / "product_images.json"
 
 # ── ML artifacts (produced by ml/train_and_export.py) ────────────────────────
+# Path A: Count Vectors (BoW) + CalibratedClassifierCV(LinearSVC)
 MODEL_PKL_PATH      = ML_DIR / "model.pkl"
 VECTORIZER_PKL_PATH = ML_DIR / "tfidf_vectorizer.pkl"
+
+# Path B: Unweighted FastText averaged embeddings + LogisticRegression
+MODEL_UNWEIGHTED_PKL_PATH = ML_DIR / "model_unweighted.pkl"
+
+# Path C: TF-IDF-weighted FastText embeddings + LogisticRegression
+MODEL_WEIGHTED_PKL_PATH          = ML_DIR / "model_weighted.pkl"
+TFIDF_WEIGHT_VECTORIZER_PKL_PATH = ML_DIR / "tfidf_weight_vectorizer.pkl"
+
+# FastText per-token lookup table — shared by both embedding paths.
+# dict[str, np.ndarray(300,)] restricted to the 8,054 tokens in vocab.txt.
+FASTTEXT_VOCAB_PKL_PATH = ML_DIR / "fasttext_vocab.pkl"
+
+# ── Fusion (weighted soft voting) ────────────────────────────────────────────
+# Weights are 5-fold CV macro-F1 scores per representation. ml/train_and_export.py
+# measures them on the deployed classifiers and writes them to fusion_weights.json
+# so PredictService always weights with the ACTUAL deployed models. If the JSON is
+# missing (fresh checkout, training hasn't run), fall back to the M1 numbers below.
+_FUSION_WEIGHTS_JSON = ML_DIR / "fusion_weights.json"
+_FUSION_WEIGHTS_DEFAULT = {
+    "bow":        0.6996,  # M1: LogReg + Count Vectors
+    "unweighted": 0.6491,  # M1: LogReg + unweighted FastText
+    "weighted":   0.6428,  # M1: LogReg + TF-IDF-weighted FastText
+}
+if _FUSION_WEIGHTS_JSON.exists():
+    import json
+    try:
+        FUSION_WEIGHTS = json.loads(_FUSION_WEIGHTS_JSON.read_text())
+    except (json.JSONDecodeError, OSError):
+        FUSION_WEIGHTS = _FUSION_WEIGHTS_DEFAULT.copy()
+else:
+    FUSION_WEIGHTS = _FUSION_WEIGHTS_DEFAULT.copy()
+FUSION_THRESHOLD = 0.5
 
 # ── SQLite database ──────────────────────────────────────────────────────────
 DB_PATH     = DATA_DIR / "beaute.db"
