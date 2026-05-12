@@ -73,6 +73,7 @@ def create_app() -> Flask:
         "aspect_mining":   aspect_svc,
     }
 
+    # Setup routing for the WebAPP
     app.register_blueprint(auth_bp)
     app.register_blueprint(products_bp)
     app.register_blueprint(reviews_bp)
