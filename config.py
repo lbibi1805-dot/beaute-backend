@@ -4,6 +4,7 @@ All file paths and runtime settings are defined here.
 Never hard-code paths elsewhere — import from this module.
 """
 from pathlib import Path
+import os;
 
 # ── directory layout ─────────────────────────────────────────────────────────
 BASE_DIR   = Path(__file__).resolve().parent          # backend/
@@ -35,8 +36,10 @@ CUSTOMER_USERNAME    = "customer"
 CUSTOMER_PASSWORD    = "customer123"
 
 # ── Flask settings ────────────────────────────────────────────────────────────
-FLASK_PORT  = 5000
-FLASK_DEBUG = True
+# FLASK_PORT  = 5000
+# FLASK_DEBUG = True
+FLASK_PORT = int(os.getenv("PORT", "5000"))
+FLASK_DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
 
 # ── recommendation ────────────────────────────────────────────────────────────
 SIMILAR_PRODUCTS_TOP_N = 6

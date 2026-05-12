@@ -40,6 +40,7 @@ class ReviewService:
         rating: int,
         label_override: str | None = None,
         is_verified_buyer: bool = True,
+        author: str | None = None,
     ) -> dict:
         """
         Predict label, optionally override, persist, and return the full record.
@@ -59,6 +60,7 @@ class ReviewService:
 
         review = {
             "product_id":        product_id,
+            "author":            author,
             "title":             title,
             "description":       description,
             "rating":            rating,

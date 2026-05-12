@@ -93,6 +93,13 @@ def create_review(product_id: str):
     except (TypeError, ValueError):
         return jsonify({"error": "rating must be an integer between 1 and 5"}), 400
 
+    # Extract author from Bearer token (optional — guests may submit without a token)
+    author: str | None = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        author = _services()["auth"].get_username(token)
+
     svc = _services()["review"]
     saved = svc.create_review(
         product_id=product_id,
@@ -100,8 +107,34 @@ def create_review(product_id: str):
         description=description,
         rating=rating,
         label_override=label_override,
+        author=author,
     )
     return jsonify(saved), 201
+
+
+# ── DELETE /api/products/<product_id>/reviews/<review_id> ─────────────────────────────
+@products_bp.delete("/<product_id>/reviews/<review_id>")
+def delete_own_review(product_id: str, review_id: str):
+    """
+    Allows an authenticated user to delete their own review.
+    Admins may delete any review via DELETE /api/admin/reviews/<id>.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Authentication required"}), 401
+
+    token    = auth_header[7:].strip()
+    username = _services()["auth"].get_username(token)
+    if not username:
+        return jsonify({"error": "Invalid token"}), 401
+
+    repo = _services()["review_repo"]
+    ok, reason = repo.delete_by_id_as_user(review_id, username)
+    if not ok:
+        if reason == "not_found":
+            return jsonify({"error": "Review not found"}), 404
+        return jsonify({"error": "You can only delete your own reviews"}), 403
+    return "", 204
 
 
 # ── GET /api/products/<product_id>/similar ────────────────────────────────────

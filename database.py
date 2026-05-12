@@ -20,6 +20,7 @@ class Review(db.Model):
 
     id                 = db.Column(db.String(36), primary_key=True)       # UUID
     product_id         = db.Column(db.String(64), nullable=False, index=True)
+    author             = db.Column(db.String(64), nullable=True)          # username of submitter
     title              = db.Column(db.String(256), nullable=False)
     description        = db.Column(db.Text, nullable=False)
     rating             = db.Column(db.Integer, nullable=False)
@@ -37,6 +38,7 @@ class Review(db.Model):
         return {
             "review_id":         self.id,
             "product_id":        self.product_id,
+            "author":            self.author,
             "title":             self.title,
             "description":       self.description,
             "rating":            self.rating,
