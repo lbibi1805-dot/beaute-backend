@@ -41,13 +41,17 @@ def create_app() -> Flask:
 
     with app.app_context():
         db.create_all()
-        # Migrate: add 'author' column if it doesn't exist (safe on re-run)
+        # Migrate: add columns if they don't exist (safe on re-run)
         with db.engine.connect() as conn:
-            try:
-                conn.execute(text("ALTER TABLE reviews ADD COLUMN author VARCHAR(64)"))
-                conn.commit()
-            except Exception:
-                pass  # column already exists
+            for ddl in [
+                "ALTER TABLE reviews ADD COLUMN author VARCHAR(64)",
+                "ALTER TABLE reviews ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0",
+            ]:
+                try:
+                    conn.execute(text(ddl))
+                    conn.commit()
+                except Exception:
+                    pass  # column already exists
 
     # ── boot services ─────────────────────────────────────────────────────────
     product_repo    = ProductRepository()

@@ -28,6 +28,7 @@ class Review(db.Model):
     final_label        = db.Column(db.String(32), nullable=False)
     overridden         = db.Column(db.Boolean, nullable=False, default=False)
     is_verified_buyer  = db.Column(db.Boolean, nullable=False, default=True)
+    is_deleted         = db.Column(db.Boolean, nullable=False, default=False)  # soft-delete flag
     created_at         = db.Column(
         db.DateTime,
         nullable=False,

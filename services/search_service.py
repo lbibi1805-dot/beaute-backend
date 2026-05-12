@@ -27,10 +27,13 @@ class SearchService:
         category: str | None = None,
         min_price: float | None = None,
         max_price: float | None = None,
+        sort: str | None = None,
     ) -> dict:
         """
         Return {count, products} matching all supplied filters.
         All string comparisons are case-insensitive.
+
+        sort options: price_asc, price_desc, rating_asc, rating_desc
         """
         products = self._repo.all()
 
@@ -50,6 +53,16 @@ class SearchService:
 
         if max_price is not None:
             products = [p for p in products if p["price"] <= max_price]
+
+        _SORT_KEY = {
+            "price_asc":    (lambda p: p["price"],      False),
+            "price_desc":   (lambda p: p["price"],      True),
+            "rating_asc":   (lambda p: p["avg_rating"], False),
+            "rating_desc":  (lambda p: p["avg_rating"], True),
+        }
+        if sort and sort in _SORT_KEY:
+            key_fn, reverse = _SORT_KEY[sort]
+            products = sorted(products, key=key_fn, reverse=reverse)
 
         return {"count": len(products), "products": products}
 

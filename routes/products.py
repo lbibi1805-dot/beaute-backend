@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from flask import Blueprint, jsonify, request, current_app
 
+from utils.helpers import float_or_none as _float_or_none, int_or as _int_or
+
 
 products_bp = Blueprint("products", __name__, url_prefix="/api/products")
 
@@ -24,6 +26,7 @@ def list_products():
         category    — comma-separated category names
         min_price   — float
         max_price   — float
+        sort        — price_asc | price_desc | rating_asc | rating_desc
     """
     svc = _services()["search"]
     q         = request.args.get("q", "").strip()
@@ -31,9 +34,10 @@ def list_products():
     category  = request.args.get("category", "").strip() or None
     min_price = _float_or_none(request.args.get("min_price"))
     max_price = _float_or_none(request.args.get("max_price"))
+    sort      = request.args.get("sort", "").strip() or None
 
     result = svc.search(query=q, brand=brand, category=category,
-                        min_price=min_price, max_price=max_price)
+                        min_price=min_price, max_price=max_price, sort=sort)
     return jsonify(result), 200
 
 
@@ -85,6 +89,10 @@ def create_review(product_id: str):
 
     if not title or not description:
         return jsonify({"error": "title and description are required"}), 400
+    if len(title) > 256:
+        return jsonify({"error": "title must be 256 characters or fewer"}), 400
+    if len(description) > 5000:
+        return jsonify({"error": "description must be 5000 characters or fewer"}), 400
 
     try:
         rating = int(rating_raw)
@@ -107,6 +115,7 @@ def create_review(product_id: str):
         description=description,
         rating=rating,
         label_override=label_override,
+        is_verified_buyer=(author is not None),
         author=author,
     )
     return jsonify(saved), 201
@@ -163,20 +172,3 @@ def product_complaints(product_id: str):
     limit = _int_or(request.args.get("limit"), 10)
     return jsonify({"complaints": svc.top_complaints_for_product(product_id, limit=limit)}), 200
 
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-def _float_or_none(value: str | None) -> float | None:
-    if value is None or value.strip() == "":
-        return None
-    try:
-        return float(value)
-    except ValueError:
-        return None
-
-
-def _int_or(value, default: int) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
