@@ -14,6 +14,7 @@ from flask_cors import CORS
 
 import config
 from database import db
+from data_access.historical_review_repository import HistoricalReviewRepository
 from data_access.product_repository import ProductRepository
 from data_access.review_repository import ReviewRepository
 from services.auth_service import AuthService
@@ -43,17 +44,19 @@ def create_app() -> Flask:
     # ── boot services ─────────────────────────────────────────────────────────
     product_repo    = ProductRepository()
     review_repo     = ReviewRepository()
+    historical_repo = HistoricalReviewRepository()
     auth_svc        = AuthService()
     predict_svc     = PredictService()
-    review_svc      = ReviewService(review_repo, predict_svc)
+    review_svc      = ReviewService(review_repo, predict_svc, historical_repo)
     search_svc      = SearchService(product_repo)
     recommend_svc   = RecommendationService(product_repo)
-    analytics_svc   = AnalyticsService(product_repo)
+    analytics_svc   = AnalyticsService(product_repo, historical_repo)
     aspect_svc      = AspectMiningService()
 
     app.config["SERVICES"] = {
         "product_repo":    product_repo,
         "review_repo":     review_repo,
+        "historical_repo": historical_repo,
         "auth":            auth_svc,
         "review":          review_svc,
         "search":          search_svc,

@@ -17,6 +17,7 @@ RAW_CSV_PATH       = DATA_DIR / "cosmetics_beauty_products_reviews.csv"
 PROCESSED_CSV_PATH = DATA_DIR / "processed.csv"
 VOCAB_TXT_PATH     = DATA_DIR / "vocab.txt"
 STOPWORDS_TXT_PATH = DATA_DIR / "stopwords_en.txt"
+PRODUCT_IMAGES_JSON_PATH = DATA_DIR / "product_images.json"
 
 # ── ML artifacts (produced by ml/train_and_export.py) ────────────────────────
 MODEL_PKL_PATH      = ML_DIR / "model.pkl"

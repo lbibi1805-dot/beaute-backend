@@ -14,6 +14,7 @@ purchase event.
 from __future__ import annotations
 
 from enums.label import RecommendLabel
+from data_access.historical_review_repository import HistoricalReviewRepository
 from data_access.review_repository import ReviewRepository
 from services.predict_service import PredictService
 
@@ -23,9 +24,11 @@ class ReviewService:
         self,
         review_repo: ReviewRepository,
         predict_service: PredictService,
+        historical_repo: HistoricalReviewRepository | None = None,
     ) -> None:
         self._repo = review_repo
         self._predict = predict_service
+        self._historical = historical_repo
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -69,10 +72,28 @@ class ReviewService:
         return saved
 
     def get_review(self, review_id: str) -> dict | None:
+        if self._historical and review_id.startswith(HistoricalReviewRepository.CSV_ID_PREFIX):
+            return self._historical.get_by_id(review_id)
         return self._repo.get_by_id(review_id)
 
-    def get_reviews_for_product(self, product_id: str) -> list[dict]:
-        reviews = self._repo.get_by_product_id(product_id)
-        for r in reviews:
+    def get_reviews_for_product(
+        self,
+        product_id: str,
+        historical_limit: int = 50,
+    ) -> list[dict]:
+        # Newest live (app-submitted) reviews first, then historical CSV
+        # reviews — keeps user-generated content prominent while still
+        # surfacing the rich historical context bundled with the dataset.
+        # CSV reviews are capped to keep the product page responsive: some
+        # products have hundreds of historical reviews in the dataset.
+        live = self._repo.get_by_product_id(product_id)
+        for r in live:
             r.setdefault("review_url", f"/api/reviews/{r['review_id']}")
-        return reviews
+            r.setdefault("source", "live")
+
+        if self._historical is None:
+            return live
+        historical = self._historical.get_by_product_id(product_id)
+        if historical_limit and historical_limit > 0:
+            historical = historical[:historical_limit]
+        return live + historical

@@ -7,6 +7,8 @@ get/search helpers used by the service layer.
 """
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 
 import config
@@ -22,6 +24,7 @@ class ProductRepository:
 
     def _load(self) -> None:
         df = pd.read_csv(config.RAW_CSV_PATH, low_memory=False)
+        image_map = self._load_image_map()
 
         # Derive one record per unique product — keep first occurrence of each
         # product_id for stable attribute values.
@@ -51,7 +54,8 @@ class ProductRepository:
                 "product_title":str(row.get("product_title", row.get("product_name", ""))),
                 "price":        self._safe_float(row.get("price", 0)),
                 "category":     str(row.get("product_type", row.get("category", "Beauty"))),
-                "image_url":    str(row.get("image_url", "")),
+                # Prefer scraped image URLs when available.
+                "image_url":    image_map.get(product_id) or str(row.get("image_url", "")),
                 "avg_rating":   avg_rating,
                 "review_count": review_count,
                 # description composed from available text columns
@@ -76,6 +80,31 @@ class ProductRepository:
             if isinstance(val, str) and val.strip():
                 return val.strip()
         return ""
+
+    @staticmethod
+    def _load_image_map() -> dict[str, str]:
+        """Load product_id -> image_url mapping from scraped JSON (if present)."""
+        path = config.PRODUCT_IMAGES_JSON_PATH
+        if not path.exists():
+            return {}
+        try:
+            items = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}
+
+        image_map: dict[str, str] = {}
+        if not isinstance(items, list):
+            return image_map
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            product_id = str(item.get("product_id", "")).strip()
+            image_url = str(item.get("image_url", "")).strip()
+            if product_id and image_url:
+                image_map[product_id] = image_url
+
+        return image_map
 
     # ── public API ────────────────────────────────────────────────────────────
 
