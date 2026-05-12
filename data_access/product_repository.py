@@ -53,7 +53,7 @@ class ProductRepository:
                 "brand_name":   str(row.get("brand_name", "")),
                 "product_title":str(row.get("product_title", row.get("product_name", ""))),
                 "price":        self._safe_float(row.get("price", 0)),
-                "category":     str(row.get("product_type", row.get("category", "Beauty"))),
+                "category":     self._derive_category(row),
                 # Prefer scraped image URLs when available.
                 "image_url":    image_map.get(product_id) or str(row.get("image_url", "")),
                 "avg_rating":   avg_rating,
@@ -65,6 +65,22 @@ class ProductRepository:
             self._by_id[product_id] = record
 
         print(f"[ProductRepository] loaded {len(self._products)} products")
+
+    @staticmethod
+    def _derive_category(row: "pd.Series") -> str:
+        """Derive a category from the product_tags column (first tag).
+
+        The CSV has no product_type or category column; product_tags contains
+        pipe/comma/semicolon-separated tag strings like "Makeup|Foundation|Face".
+        We take the first non-empty token as the display category.
+        """
+        import re as _re
+        tags_raw = row.get("product_tags", "")
+        if not isinstance(tags_raw, str) or not tags_raw.strip():
+            return "Beauty"
+        # Split on any of |, comma, semicolon
+        parts = [t.strip() for t in _re.split(r"[|,;]", tags_raw) if t.strip()]
+        return parts[0] if parts else "Beauty"
 
     @staticmethod
     def _safe_float(val) -> float:

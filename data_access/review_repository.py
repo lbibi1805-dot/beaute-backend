@@ -37,31 +37,31 @@ class ReviewRepository:
         return record.to_dict() if record else None
 
     def get_by_product_id(self, product_id: str) -> list[dict]:
-        records = Review.query.filter_by(product_id=product_id).order_by(Review.created_at.desc()).all()
+        records = Review.query.filter_by(product_id=product_id, is_deleted=False).order_by(Review.created_at.desc()).all()
         return [r.to_dict() for r in records]
 
     def all(self) -> list[dict]:
-        return [r.to_dict() for r in Review.query.order_by(Review.created_at.desc()).all()]
+        return [r.to_dict() for r in Review.query.filter_by(is_deleted=False).order_by(Review.created_at.desc()).all()]
 
     def delete_by_id(self, review_id: str) -> bool:
-        """Hard-delete a review. Returns True if deleted, False if not found."""
+        """Soft-delete a review. Returns True if found and marked deleted, False if not found."""
         record = db.session.get(Review, review_id)
-        if record is None:
+        if record is None or record.is_deleted:
             return False
-        db.session.delete(record)
+        record.is_deleted = True
         db.session.commit()
         return True
 
     def delete_by_id_as_user(self, review_id: str, username: str) -> tuple[bool, str]:
         """
-        Delete a review only if it belongs to `username`.
+        Soft-delete a review only if it belongs to `username`.
         Returns (True, "") on success, (False, "not_found") or (False, "forbidden").
         """
         record = db.session.get(Review, review_id)
-        if record is None:
+        if record is None or record.is_deleted:
             return False, "not_found"
         if record.author != username:
             return False, "forbidden"
-        db.session.delete(record)
+        record.is_deleted = True
         db.session.commit()
         return True, ""

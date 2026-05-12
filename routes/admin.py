@@ -7,6 +7,7 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, request, current_app
 
 from utils.auth_guard import require_admin
+from utils.helpers import int_or as _int_or
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -114,10 +115,3 @@ def delete_review(review_id: str):
         return jsonify({"error": "Review not found"}), 404
     return "", 204
 
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-def _int_or(value, default: int) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
